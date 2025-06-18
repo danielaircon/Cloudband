@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>My Library - CloudBand</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+    <style>
+        /* Custom styles to ensure progress bar is visible on top of footer when active */
+        #playback-progress-bar-container.active {
+            display: flex; /* Override hidden */
+        }
+        #player-footer.active {
+            display: flex; /* Override hidden */
+        }
+    </style>
+</head>
+<body class="bg-black text-white font-sans min-h-screen">
+
+<header class="bg-black border-b border-[#222]">
+    <div class="flex justify-between items-center px-8 py-4 w-5/6 max-w-screen-xl mx-auto">
+        
+        <div class="flex items-center space-x-8">
+            <div class="text-2xl font-bold text-white">Cloud<span class="text-purple-500">Band</span></div>
+            <nav class="space-x-4">
+                <a href="index.html" class="nav-link text-gray-400 text-md hover:underline">Discover</a>
+                <a href="#" class="nav-link text-white text-md hover:underline font-bold">My Library</a>
+            </nav>
+        </div>
+
+        <div id="auth-actions" class="flex items-center space-x-4">
+            <div id="auth-loading" class="flex items-center space-x-2">
+                <i data-lucide="loader-2" class="w-4 h-4 animate-spin text-gray-400"></i>
+                <span class="text-gray-400 text-sm">Loading...</span>
+            </div>
+            
+            <div id="not-authenticated" class="hidden flex items-center space-x-8">
+                <a href="login.html">
+                    <button class="flex items-center gap-2 bg-black text-white font-semibold px-4 py-2 rounded hover:bg-[#111]">
+                        <i data-lucide="log-in" class="w-4 h-4"></i> Login
+                    </button>
+                </a>
+                <a href="signup.html">
+                    <button class="flex items-center gap-2 bg-black text-white font-semibold px-4 py-2 rounded border border-gray-500 hover:bg-[#111]">
+                        <i data-lucide="user-plus" class="w-4 h-4"></i> Sign Up
+                    </button>
+                </a>
+            </div>
+            
+            <div id="authenticated" class="hidden flex items-center space-x-8">
+                <a href="upload.html">
+                    <button class="flex items-center gap-2 bg-purple-500 text-white font-semibold px-4 py-2 rounded hover:bg-purple-600">
+                        <i data-lucide="upload" class="w-4 h-4"></i> Upload Track
+                    </button>
+                </a>
+                <button id="logout-btn" class="flex items-center gap-2 rounded border border-gray-500 text-white font-semibold px-4 py-2 rounded hover:bg-red-500">
+                    <i data-lucide="log-out" class="w-4 h-4"></i> Logout
+                </button>
+            </div>
+        </div>
+    </div>
+</header>
+
+<main class="px-8 py-10 w-5/6 max-w-screen-xl mx-auto">
+    <h1 class="text-2xl font-bold mb-6">Your Library</h1>
+
+    <div class="flex space-x-2 mb-6">
+        <button class="bg-purple-600 text-white px-4 py-1 rounded-full text-sm">Music</button>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-4 gap-6 mb-10">
+        <div class="bg-purple-700 p-4 rounded-lg flex flex-col justify-between">
+            <div><i data-lucide="heart" class="w-6 h-6 mb-2"></i></div>
+            <div>
+                <p class="font-semibold">Liked Songs</p>
+                <p class="text-sm text-gray-300"><span id="likedSongsCount">Loading...</span></p>
+            </div>
+        </div>
+        <div class="bg-blue-500 p-4 rounded-lg flex flex-col justify-between">
+            <div><i data-lucide="music" class="w-6 h-6 mb-2"></i></div>
+            <div>
+                <p class="font-semibold">Your Uploads</p>
+                <p class="text-sm text-gray-300"><span id="yourUploadsCount">Loading...</span></p>
+            </div>
+            </div>
+    </div>
+
+    <section class="mb-10">
+        <div class="flex justify-between items-center mb-8">
+            <h2 class="text-lg font-semibold">Your Favorites</h2>
+        </div>
+        <div id="yourFavoritesGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            <div id="favoritesLoading" class="flex items-center justify-center py-8 col-span-full">
+                <i data-lucide="loader-2" class="w-6 h-6 animate-spin text-purple-400 mr-2"></i>
+                <span class="text-gray-400">Loading your favorites...</span>
+            </div>
+            <div id="favoritesError" class="hidden bg-red-900/20 border border-red-500 rounded-lg p-4 col-span-full">
+                <p class="text-red-400">Error loading favorite tracks. Please try again later.</p>
+            </div>
+            <div id="no-favorites" class="hidden col-span-full">
+                <p class="text-gray-400">You haven't added any favorites yet. Go to <a href="index.html" class="text-purple-500 underline">Discover</a> to find some music!</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="mb-10">
+        <div class="flex justify-between items-center mb-8">
+            <h2 class="text-lg font-semibold">Your Uploaded Tracks</h2>
+        </div>
+        <div id="yourUploadsGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            <div id="uploadsLoading" class="flex items-center justify-center py-8 col-span-full">
+                <i data-lucide="loader-2" class="w-6 h-6 animate-spin text-purple-400 mr-2"></i>
+                <span class="text-gray-400">Loading your uploads...</span>
+            </div>
+            <div id="uploadsError" class="hidden bg-red-900/20 border border-red-500 rounded-lg p-4 col-span-full">
+                <p class="text-red-400">Error loading your uploaded tracks. Please try again later.</p>
+            </div>
+            <div id="no-uploads" class="hidden col-span-full">
+                <p class="text-gray-400">You haven't uploaded any tracks yet. Go to <a href="upload.html" class="text-purple-500 underline">Upload Track</a> to add your music!</p>
+            </div>
+        </div>
+    </section>
+</main>
+
+<div class="invisible h-24"></div>
+
+<audio id="audio-player" class="hidden"></audio>
+
+<div id="playback-progress-bar-container" class="fixed bottom-16 left-0 right-0 w-full bg-[#181818] px-4 py-2 flex items-center justify-center gap-2 z-40 hidden">
+    <span id="current-time-display" class="text-xs text-gray-400">0:00</span>
+    <input type="range" min="0" max="100" value="0" class="flex-grow accent-purple-500 cursor-pointer" id="progress-bar" />
+    <span id="duration-display" class="text-xs text-gray-400">0:00</span>
+</div>
+
+<footer id="player-footer" class="fixed bottom-0 w-full bg-[#111] text-white border-t border-[#333] px-4 py-3 h-16 flex flex-col md:flex-row justify-between items-center gap-4 z-50 hidden">
+    <div class="flex items-center space-x-4">
+        <img id="player-cover" src="./assets/Music.jpg" alt="Track Cover" class="w-12 h-12 rounded object-cover" />
+        <div>
+            <p id="player-title" class="text-sm font-medium">No track playing</p>
+            <small id="player-artist" class="text-gray-400 text-xs">...</small>
+        </div>
+    </div>
+    <div class="flex items-center space-x-8 text-xl">
+        <button id="prev-track-btn" class="hover:text-purple-400">
+            <i data-lucide="skip-back" class="w-6 h-6"></i>
+        </button>
+        <button id="play-pause-btn" class="hover:text-purple-400">
+            <i data-lucide="play" class="w-6 h-6"></i>
+        </button>
+        <button id="next-track-btn" class="hover:text-purple-400">
+            <i data-lucide="skip-forward" class="w-6 h-6"></i>
+        </button>
+    </div>
+    <div class="flex items-center gap-2">
+        <button id="mute-unmute-btn" class="hover:text-purple-400">
+            <i data-lucide="volume-2" class="w-5 h-5"></i>
+        </button>
+        <input type="range" min="0" max="1" step="0.01" value="0.5" class="w-24 accent-purple-500 cursor-pointer" id="volume-slider" />
+    </div>
+</footer>
+
+<script>
+    // Supabase config
+    const SUPABASE_URL = 'https://pibzqbgubzrhtcqfftov.supabase.co'; // REPLACE WITH YOUR ACTUAL SUPABASE URL
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpYnpxYmd1YnpyaHRjcWZmdG92Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk1Mjc2MjUsImV4cCI6MjA2NTEwMzYyNX0.388avFjv2guDGFpi71-Z-nTsFh1rl7QVjL4IgUWAmjA'; // REPLACE WITH YOUR ACTUAL SUPABASE ANON KEY
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // DOM references
+    let authLoading, notAuthenticated, authenticated, logoutBtn, libraryLink, userEmail;
+    let favoritesLoading, favoritesError, yourFavoritesGrid, noFavorites;
+    // Uploads section DOM references
+    let uploadsLoading, uploadsError, yourUploadsGrid, noUploads; 
+    let likedSongsCount, yourUploadsCount;
+    let playerFooter, playbackProgressBarContainer; // Reference for the footer and progress bar container
+
+    // Music Player DOM references and state
+    let audioPlayer, playPauseBtn, prevTrackBtn, nextTrackBtn, playerTitle, playerArtist, playerCover, progressBar, currentTimeDisplay, durationDisplay, volumeSlider, muteUnmuteBtn;
+    let currentPlayingTrack = null;
+    let isPlaying = false;
+    let lastVolume = 0.5; // Store last volume before muting
+    let allLoadedTracks = []; // To store all tracks loaded (favorites in this case) for next/previous functionality
+
+    function initDOM() {
+        // Auth elements
+        authLoading = document.getElementById('auth-loading');
+        notAuthenticated = document.getElementById('not-authenticated');
+        authenticated = document.getElementById('authenticated');
+        logoutBtn = document.getElementById('logout-btn');
+        libraryLink = document.getElementById('library-link');
+        userEmail = document.getElementById('user-email');
+
+        // Favorites section elements
+        favoritesLoading = document.getElementById('favoritesLoading');
+        favoritesError = document.getElementById('favoritesError');
+        yourFavoritesGrid = document.getElementById('yourFavoritesGrid');
+        noFavorites = document.getElementById('no-favorites');
+
+        // Uploads section elements
+        uploadsLoading = document.getElementById('uploadsLoading');
+        uploadsError = document.getElementById('uploadsError');
+        yourUploadsGrid = document.getElementById('yourUploadsGrid');
+        noUploads = document.getElementById('no-uploads');
+        
+        // Count elements
+        likedSongsCount = document.getElementById('likedSongsCount');
+        yourUploadsCount = document.getElementById('yourUploadsCount');
+
+        // Music Player elements
+        audioPlayer = document.getElementById('audio-player');
+        playPauseBtn = document.getElementById('play-pause-btn');
+        prevTrackBtn = document.getElementById('prev-track-btn');
+        nextTrackBtn = document.getElementById('next-track-btn');
+        playerTitle = document.getElementById('player-title');
+        playerArtist = document.getElementById('player-artist');
+        playerCover = document.getElementById('player-cover');
+
+        // Progress bar elements
+        progressBar = document.getElementById('progress-bar');
+        currentTimeDisplay = document.getElementById('current-time-display');
+        durationDisplay = document.getElementById('duration-display');
+
+        volumeSlider = document.getElementById('volume-slider');
+        muteUnmuteBtn = document.getElementById('mute-unmute-btn');
+
+        // Footer elements
+        playerFooter = document.getElementById('player-footer');
+        playbackProgressBarContainer = document.getElementById('playback-progress-bar-container');
+    }
+
+    function showAuthenticated(user) {
+        authLoading?.classList.add('hidden');
+        notAuthenticated?.classList.add('hidden');
+        authenticated?.classList.remove('hidden');
+        libraryLink?.classList.remove('hidden');
+        if (userEmail) userEmail.textContent = user.email;
+        lucide.createIcons();
+    }
+
+    function showNotAuthenticated() {
+        authLoading?.classList.add('hidden');
+        authenticated?.classList.add('hidden');
+        notAuthenticated?.classList.remove('hidden');
+        libraryLink?.classList.add('hidden');
+        lucide.createIcons();
+    }
+
+    async function checkAuthStatus() {
+        try {
+            const { data: { session }, error } = await supabaseClient.auth.getSession();
+            console.log('Session:', session, 'Error:', error);
+
+            if (session?.user) {
+                showAuthenticated(session.user);
+                return session.user; // Return the user object
+            } else {
+                showNotAuthenticated();
+                // Redirect to login if not authenticated on library page
+                window.location.href = 'login.html';
+                return null;
+            }
+        } catch (err) {
+            console.error('Auth check error:', err);
+            showNotAuthenticated();
+            window.location.href = 'login.html'; // Also redirect on auth error
+            return null;
+        }
+    }
+
+    async function logout() {
+        if (logoutBtn) {
+            logoutBtn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Logging out...';
+            logoutBtn.disabled = true;
+        }
+
+        const { error } = await supabaseClient.auth.signOut();
+        if (error) {
+            console.error('Logout error:', error);
+            alert('Error logging out. Please try again.');
+        } else {
+            window.location.href = 'index.html';
+        }
+    }
+
+    async function loadCounts(userId) {
+        console.log('Loading counts for user:', userId);
+
+        if (!userId) {
+            if (likedSongsCount) likedSongsCount.textContent = 'N/A';
+            if (yourUploadsCount) yourUploadsCount.textContent = 'N/A';
+            return;
+        }
+
+        // Fetch Liked Songs count
+        try {
+            const { count: likedCount, error: likedError } = await supabaseClient
+                .from('track_favorites')
+                .select('*', { count: 'exact', head: true })
+                .eq('user_id', userId);
+
+            if (likedError) throw likedError;
+            if (likedSongsCount) likedSongsCount.textContent = `${likedCount || 0} tracks`;
+        } catch (error) {
+            console.error('Error fetching liked songs count:', error.message);
+            if (likedSongsCount) likedSongsCount.textContent = 'Error';
+        }
+
+        // Fetch Your Uploads count
+        try {
+            const { count: uploadsCount, error: uploadsError } = await supabaseClient
+                .from('tracks')
+                .select('*', { count: 'exact', head: true })
+                .eq('user_id', userId);
+
+            if (uploadsError) throw uploadsError;
+            if (yourUploadsCount) yourUploadsCount.textContent = `${uploadsCount || 0} tracks`;
+        } catch (error) {
+            console.error('Error fetching your uploads count:', error.message);
+            if (yourUploadsCount) yourUploadsCount.textContent = 'Error';
+        }
+    }
+
+    async function loadFavoriteTracks(userId) {
+        console.log('Loading favorite tracks for user:', userId);
+
+        if (!userId) {
+            console.log('No user ID provided, cannot load favorites.');
+            if (yourFavoritesGrid) yourFavoritesGrid.innerHTML = '<p class="text-gray-400">Please log in to view your favorite tracks.</p>';
+            return;
+        }
+
+        try {
+            favoritesLoading?.classList.remove('hidden');
+            favoritesError?.classList.add('hidden');
+            noFavorites?.classList.add('hidden');
+            if (yourFavoritesGrid) yourFavoritesGrid.innerHTML = ''; // Clear previous content
+
+            const { data, error } = await supabaseClient
+                .from('track_favorites')
+                .select(`
+                    track_id,
+                    tracks(id, title, author, cover_path, song_path)
+                `)
+                .eq('user_id', userId);
+
+            if (error) throw error;
+
+            const favoriteTracks = data.map(fav => fav.tracks);
+            // allLoadedTracks = favoriteTracks; // Commented out to prevent mixing favorite/upload for player nav if not desired
+                                              // If you want player to navigate ALL tracks (favs + uploads), you'll need to combine them here.
+
+            favoritesLoading?.classList.add('hidden');
+
+            if (favoriteTracks.length === 0) {
+                if (noFavorites) noFavorites.classList.remove('hidden');
+            } else {
+                const favoritesHTML = favoriteTracks
+                    .map(track => createTrackCard(track))
+                    .join('');
+                if (yourFavoritesGrid) yourFavoritesGrid.innerHTML = favoritesHTML;
+            }
+            lucide.createIcons();
+        } catch (err) {
+            console.error('Error loading favorite tracks:', err.message);
+            favoritesLoading?.classList.add('hidden');
+            favoritesError?.classList.remove('hidden');
+            const errorElement = favoritesError.querySelector('p');
+            if (errorElement) {
+                errorElement.textContent = `Error loading favorites: ${err.message}. Please check your RLS policies for 'track_favorites' and 'tracks' tables.`;
+            }
+        }
+    }
+
+    // Load user's uploaded tracks
+    async function loadUserUploads(userId) {
+        console.log('Loading user uploads for user:', userId);
+
+        if (!userId) {
+            console.log('No user ID provided, cannot load uploads.');
+            if (yourUploadsGrid) yourUploadsGrid.innerHTML = '<p class="text-gray-400 col-span-full">Please log in to view your uploaded tracks.</p>';
+            return;
+        }
+
+        try {
+            uploadsLoading?.classList.remove('hidden');
+            uploadsError?.classList.add('hidden');
+            noUploads?.classList.add('hidden');
+            if (yourUploadsGrid) yourUploadsGrid.innerHTML = ''; // Clear previous content
+
+            const { data: uploadedTracks, error } = await supabaseClient
+                .from('tracks')
+                .select('id, title, author, cover_path, song_path')
+                .eq('user_id', userId);
+
+            if (error) throw error;
+
+            uploadsLoading?.classList.add('hidden');
+
+            if (uploadedTracks.length === 0) {
+                if (noUploads) noUploads.classList.remove('hidden');
+            } else {
+                const uploadsHTML = uploadedTracks
+                    .map(track => createUploadTrackCard(track))
+                    .join('');
+                if (yourUploadsGrid) yourUploadsGrid.innerHTML = uploadsHTML;
+            }
+            lucide.createIcons();
+
+            // Update allLoadedTracks for player navigation if needed.
+            // Currently, allLoadedTracks is populated by loadFavoriteTracks.
+            // If you want the player to navigate through *all* tracks in the library (favorites + uploads),
+            // you'd need to combine them here. For simplicity, keeping player navigation on favorites for now.
+            // To include uploads in player navigation:
+            // allLoadedTracks = [...(await getFavoriteTracksData(userId)), ...uploadedTracks];
+            // You would need a helper function to get favorite tracks data directly for this.
+            // For now, let's assume allLoadedTracks is handled by Favorites only.
+        } catch (err) {
+            console.error('Error loading user uploaded tracks:', err.message);
+            uploadsLoading?.classList.add('hidden');
+            uploadsError?.classList.remove('hidden');
+            const errorElement = uploadsError.querySelector('p');
+            if (errorElement) {
+                errorElement.textContent = `Error loading your uploads: ${err.message}. Please check your RLS policies for the 'tracks' table.`;
+            }
+        }
+    }
+
+
+    // Create track card HTML for Favorites (now with styled Download button)
+    function createTrackCard(track) {
+        const coverImage = track.cover_path || 'https://via.placeholder.com/300x300/1a1a1a/purple?text=No+Image';
+        const title = track.title || 'Unknown Title';
+        const author = track.author || 'Unknown Artist';
+
+        return `
+        <div class="bg-[#1a1a1a] rounded-lg p-4 hover:bg-[#222] transition-colors flex flex-col justify-between h-full">
+            <div class="relative mb-3 cursor-pointer" onclick="playTrack('${track.id}')">
+                <img src="${coverImage}" alt="${title}" class="w-full aspect-square rounded-md object-cover"
+                    onerror="this.src='https://via.placeholder.com/300x300/1a1a1a/purple?text=No+Image'" />
+                <div class="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-30 rounded-md flex items-center justify-center transition-all">
+                    <i data-lucide="play" class="w-12 h-12 text-white opacity-0 hover:opacity-100 transition-opacity"></i>
+                </div>
+            </div>
+            <div>
+                <h3 class="text-lg font-medium truncate" title="${title}">${title}</h3>
+                <p class="text-gray-400 text-sm truncate mb-3" title="${author}">${author}</p>
+                <div class="flex flex-col space-y-2">
+                    <button onclick="downloadTrack('${track.song_path}', '${title}.mp3')"
+                            class="flex items-center justify-center gap-2
+                                   bg-transparent text-purple-600 
+                                   font-semibold px-3 py-2 rounded
+                                   hover:bg-purple-600 hover:text-white
+                                   transition-colors text-sm">
+                        <i data-lucide="download" class="w-4 h-4"></i> Download
+                    </button>
+                </div>
+            </div>
+        </div>
+        `;
+    }
+
+    // Create HTML for an uploaded track (now only with styled Delete button)
+    function createUploadTrackCard(track) {
+        const coverImage = track.cover_path || 'https://via.placeholder.com/300x300/1a1a1a/purple?text=No+Image';
+        const title = track.title || 'Unknown Title';
+        const author = track.author || 'Unknown Artist';
+
+        return `
+        <div class="bg-[#1a1a1a] rounded-lg p-4 hover:bg-[#222] transition-colors flex flex-col justify-between h-full">
+            <div class="relative mb-3 cursor-pointer" onclick="playTrack('${track.id}')">
+                <img src="${coverImage}" alt="${title}" class="w-full aspect-square rounded-md object-cover"
+                    onerror="this.src='https://via.placeholder.com/300x300/1a1a1a/purple?text=No+Image'" />
+                <div class="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-30 rounded-md flex items-center justify-center transition-all">
+                    <i data-lucide="play" class="w-12 h-12 text-white opacity-0 hover:opacity-100 transition-opacity"></i>
+                </div>
+            </div>
+            <div>
+                <h3 class="text-lg font-medium truncate" title="${title}">${title}</h3>
+                <p class="text-gray-400 text-sm truncate mb-3" title="${author}">${author}</p>
+                <div class="flex flex-col space-y-2">
+                    <button onclick="deleteTrack('${track.id}', '${track.song_path}', '${track.cover_path}')"
+                            class="flex items-center justify-center gap-2
+                                   bg-transparent text-red-600
+                                   font-semibold px-3 py-2 rounded
+                                   hover:bg-red-600 hover:text-white
+                                   transition-colors text-sm">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i> Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+        `;
+    }
+
+    // Delete a track
+    async function deleteTrack(trackId, songPath, coverPath) {
+        if (!confirm('Are you sure you want to delete this track? This action cannot be undone.')) {
+            return;
+        }
+
+        try {
+            // Delete track from database
+            const { error: dbError } = await supabaseClient
+                .from('tracks')
+                .delete()
+                .eq('id', trackId);
+
+            if (dbError) throw dbError;
+
+            // Delete associated files from storage (song and cover)
+            const filesToDelete = [];
+            if (songPath) {
+                // Extract the path within the bucket. Assuming songPath is a full URL like:
+                // https://<project_id>.supabase.co/storage/v1/object/public/<bucket_name>/<path_in_bucket>
+                const songStoragePath = songPath.split('/').slice(8).join('/'); // Adjust slice index if your URL structure differs
+                if (songStoragePath) filesToDelete.push(songStoragePath);
+            }
+            if (coverPath) {
+                const coverStoragePath = coverPath.split('/').slice(8).join('/'); // Same for cover
+                if (coverStoragePath) filesToDelete.push(coverStoragePath);
+            }
+
+            if (filesToDelete.length > 0) {
+                // Assuming your tracks are in a bucket named 'tracks' or similar
+                const { error: storageError } = await supabaseClient.storage
+                    .from('tracks') // Replace 'tracks' with your actual bucket name
+                    .remove(filesToDelete);
+
+                if (storageError) {
+                    console.warn('Warning: Could not delete all files from storage:', storageError.message);
+                    alert('Track deleted from database, but there was an issue deleting associated files from storage.');
+                }
+            }
+
+            alert('Track deleted successfully!');
+            // Reload user uploads and counts after deletion
+            const user = await checkAuthStatus(); // Re-fetch user to ensure latest session
+            if (user) {
+                await loadUserUploads(user.id);
+                await loadCounts(user.id);
+            }
+        } catch (error) {
+            console.error('Error deleting track:', error.message);
+            alert(`Error deleting track: ${error.message}. Please ensure you have permission (RLS policies).`);
+        }
+    }
+
+    // Download a track using Blob method to force download
+    async function downloadTrack(songPath, filename = 'track.mp3') {
+        if (!songPath) {
+            alert('No audio file available for this track.');
+            return;
+        }
+
+        try {
+            // 1. Fetch the audio file data
+            const response = await fetch(songPath);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            // 2. Get the response as a Blob (Binary Large Object)
+            const blob = await response.blob();
+
+            // 3. Create a local URL for the Blob
+            const url = window.URL.createObjectURL(blob);
+
+            // 4. Create a temporary link element
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename; // This attribute suggests the filename for the download
+
+            // 5. Programmatically click the link to trigger the download
+            document.body.appendChild(link); // Append to body is required for Firefox
+            link.click();
+            document.body.removeChild(link);
+
+            // 6. Revoke the object URL to free up memory once the download starts
+            // (There's a slight delay to ensure browser initiates download first)
+            setTimeout(() => {
+                window.URL.revokeObjectURL(url);
+            }, 100); 
+
+        } catch (error) {
+            console.error('Error during download:', error);
+            alert(`Could not download track: ${error.message}. Please try again. Ensure the file is accessible.`);
+        }
+    }
+
+    // --- Music Player Functions (copied from index.html) ---
+
+    function formatTime(seconds) {
+        const minutes = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${minutes}:${secs < 10 ? '0' : ''}${secs}`;
+    }
+
+    async function togglePlayPause() {
+        if (!currentPlayingTrack || !audioPlayer.src) {
+            console.warn("No track loaded to play/pause. Attempting to play first favorite track.");
+            if (allLoadedTracks.length > 0) {
+                await playTrack(allLoadedTracks[0].id);
+                return;
+            }
+            alert("No track selected. Click on a track to play.");
+            return;
+        }
+
+        if (isPlaying) {
+            audioPlayer.pause();
+            playPauseBtn.innerHTML = '<i data-lucide="play" class="w-6 h-6"></i>';
+        } else {
+            try {
+                await audioPlayer.play();
+                playPauseBtn.innerHTML = '<i data-lucide="pause" class="w-6 h-6"></i>';
+            } catch (e) {
+                console.error("Error attempting to play audio:", e);
+                alert("Playback failed. Please ensure your browser allows autoplay or try interacting with the page first.");
+                playPauseBtn.innerHTML = '<i data-lucide="play" class="w-6 h-6"></i>';
+                isPlaying = false;
+                return;
+            }
+        }
+        isPlaying = !isPlaying;
+        lucide.createIcons();
+    }
+
+    async function playTrack(trackId) {
+        try {
+            console.log('Attempting to play track:', trackId);
+            const { data: track, error } = await supabaseClient
+                .from('tracks')
+                .select('*, song_path, cover_path')
+                .eq('id', trackId)
+                .single();
+
+            if (error) throw error;
+            if (!track) throw new Error('Track not found.');
+            if (!track.song_path) {
+                console.error('Track has no song_path:', track);
+                alert('This track cannot be played (no audio file path available).');
+                return;
+            }
+
+            currentPlayingTrack = track;
+            audioPlayer.src = track.song_path;
+
+            playerTitle.textContent = track.title || 'Unknown Title';
+            playerArtist.textContent = track.author || 'Unknown Artist';
+            playerCover.src = track.cover_path || 'https://via.placeholder.com/150/1a1a1a/800080?text=No+Track';
+
+            progressBar.value = 0;
+            currentTimeDisplay.textContent = '0:00';
+            durationDisplay.textContent = '0:00';
+
+            // Show the footer and progress bar when a track is played
+            playerFooter.classList.remove('hidden');
+            playerFooter.classList.add('active'); // Add active class for display override
+            playbackProgressBarContainer.classList.remove('hidden');
+            playbackProgressBarContainer.classList.add('active'); // Add active class for display override
+
+
+            await audioPlayer.play();
+            isPlaying = true;
+            playPauseBtn.innerHTML = '<i data-lucide="pause" class="w-6 h-6"></i>';
+            lucide.createIcons();
+
+        } catch (err) {
+            console.error('Error playing track:', err);
+            alert('Could not play track. Please ensure the audio file exists and is accessible.');
+            isPlaying = false;
+            playPauseBtn.innerHTML = '<i data-lucide="play" class="w-6 h-6"></i>';
+            lucide.createIcons();
+        }
+    }
+
+    function playPrevTrack() {
+        if (!currentPlayingTrack || allLoadedTracks.length === 0) {
+            console.warn('No track currently playing or no tracks loaded to navigate.');
+            return;
+        }
+
+        const currentIndex = allLoadedTracks.findIndex(track => track.id === currentPlayingTrack.id);
+        if (currentIndex === -1) {
+            console.error('Current track not found in the loaded tracks array.');
+            return;
+        }
+
+        let prevIndex = currentIndex - 1;
+        if (prevIndex < 0) {
+            prevIndex = allLoadedTracks.length - 1; // Wrap around to the end
+        }
+
+        playTrack(allLoadedTracks[prevIndex].id);
+    }
+
+    function playNextTrack() {
+        if (!currentPlayingTrack || allLoadedTracks.length === 0) {
+            console.warn('No track currently playing or no tracks loaded to navigate.');
+            return;
+        }
+
+        const currentIndex = allLoadedTracks.findIndex(track => track.id === currentPlayingTrack.id);
+        if (currentIndex === -1) {
+            console.error('Current track not found in the loaded tracks array.');
+            return;
+        }
+
+        let nextIndex = currentIndex + 1;
+        if (nextIndex >= allLoadedTracks.length) {
+            nextIndex = 0; // Wrap around to the beginning
+        }
+
+        playTrack(allLoadedTracks[nextIndex].id);
+    }
+
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', async () => {
+        console.log('DOM loaded, initializing...');
+
+        initDOM();
+        lucide.createIcons(); // Initial icon rendering for static elements
+
+        // Set initial volume for the player
+        if (audioPlayer && volumeSlider) {
+            audioPlayer.volume = parseFloat(volumeSlider.value);
+            lastVolume = audioPlayer.volume; // Initialize lastVolume
+        }
+
+        // Check auth status and load tracks
+        const user = await checkAuthStatus();
+        if (user) {
+            await loadFavoriteTracks(user.id);
+            await loadUserUploads(user.id); // Load user uploads
+            await loadCounts(user.id);
+            
+            // Populate allLoadedTracks for player navigation.
+            // This example combines favorites and uploads for navigation.
+            // Adjust this logic if you only want navigation on favorites or only uploads.
+            const { data: favoriteData } = await supabaseClient
+                .from('track_favorites')
+                .select(`tracks(id, title, author, cover_path, song_path)`)
+                .eq('user_id', user.id);
+            const favorites = favoriteData ? favoriteData.map(fav => fav.tracks) : [];
+
+                const { data: uploadsData } = await supabaseClient
+                    .from('tracks')
+                    .select('id, title, author, cover_path, song_path')
+                    .eq('user_id', user.id);
+                const uploads = uploadsData || [];
+
+                allLoadedTracks = [...favorites, ...uploads];
+
+            }
+
+            // Setup logout button
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', logout);
+            }
+
+            // --- Music Player Event Listeners ---
+            if (playPauseBtn) playPauseBtn.addEventListener('click', togglePlayPause);
+            if (prevTrackBtn) prevTrackBtn.addEventListener('click', playPrevTrack);
+            if (nextTrackBtn) nextTrackBtn.addEventListener('click', playNextTrack);
+
+            if (audioPlayer) {
+                // Update progress bar as track plays
+                audioPlayer.addEventListener('timeupdate', () => {
+                    const currentTime = audioPlayer.currentTime;
+                    const duration = audioPlayer.duration;
+                    if (duration > 0) {
+                        progressBar.value = (currentTime / duration) * 100;
+                        currentTimeDisplay.textContent = formatTime(currentTime);
+                    }
+                });
+
+                // Handle when metadata is loaded (e.g., when a new track is loaded)
+                audioPlayer.addEventListener('loadedmetadata', () => {
+                    durationDisplay.textContent = formatTime(audioPlayer.duration);
+                    progressBar.value = 0; // Reset progress bar for new track
+                    currentTimeDisplay.textContent = '0:00';
+                });
+
+                // Handle track ending
+                audioPlayer.addEventListener('ended', () => {
+                    isPlaying = false;
+                    playPauseBtn.innerHTML = '<i data-lucide="play" class="w-6 h-6"></i>';
+                    lucide.createIcons();
+                    // Automatically play next track when current one ends
+                    playNextTrack();
+                });
+
+                // Seek functionality (user dragging progress bar)
+                if (progressBar) {
+                    progressBar.addEventListener('input', () => {
+                        const seekTime = (progressBar.value / 100) * audioPlayer.duration;
+                        audioPlayer.currentTime = seekTime;
+                    });
+                }
+
+                // Volume control
+                if (volumeSlider) {
+                    volumeSlider.addEventListener('input', () => {
+                        audioPlayer.volume = parseFloat(volumeSlider.value);
+                        if (audioPlayer.volume > 0) {
+                            lastVolume = audioPlayer.volume; // Update lastVolume if not muted
+                        }
+                        // Update mute/unmute icon based on volume
+                        if (audioPlayer.volume === 0) {
+                            muteUnmuteBtn.innerHTML = '<i data-lucide="volume-x" class="w-5 h-5"></i>';
+                        } else {
+                            muteUnmuteBtn.innerHTML = '<i data-lucide="volume-2" class="w-5 h-5"></i>';
+                        }
+                        lucide.createIcons();
+                    });
+                }
+
+                // Mute/Unmute button
+                if (muteUnmuteBtn) {
+                    muteUnmuteBtn.addEventListener('click', () => {
+                        if (audioPlayer.muted) {
+                            audioPlayer.muted = false;
+                            audioPlayer.volume = lastVolume > 0 ? lastVolume : 0.5; // Restore last volume, or default to 0.5
+                            volumeSlider.value = audioPlayer.volume;
+                            muteUnmuteBtn.innerHTML = '<i data-lucide="volume-2" class="w-5 h-5"></i>';
+                        } else {
+                            lastVolume = audioPlayer.volume; // Save current volume before muting
+                            audioPlayer.muted = true;
+                            audioPlayer.volume = 0; // Visually set volume slider to 0
+                            volumeSlider.value = 0;
+                        }
+                        lucide.createIcons();
+                    });
+                }
+            }
+
+            // Listen for auth state changes
+            supabaseClient.auth.onAuthStateChange(async (event, session) => {
+                console.log('Auth event:', event);
+                if (event === 'SIGNED_IN') {
+                    showAuthenticated(session.user);
+                    // Reload favorites and counts when signed in
+                    await loadFavoriteTracks(session.user.id);
+                    await loadUserUploads(session.user.id); // Reload uploads on sign-in
+                    await loadCounts(session.user.id);
+
+                    // Re-populate allLoadedTracks on sign-in
+                    const { data: favoriteData } = await supabaseClient
+                        .from('track_favorites')
+                        .select(`tracks(id, title, author, cover_path, song_path)`)
+                        .eq('user_id', session.user.id);
+                    const favorites = favoriteData ? favoriteData.map(fav => fav.tracks) : [];
+
+                    const { data: uploadsData } = await supabaseClient
+                        .from('tracks')
+                        .select('id, title, author, cover_path, song_path')
+                        .eq('user_id', session.user.id);
+                    const uploads = uploadsData || [];
+
+                    allLoadedTracks = [...favorites, ...uploads];
+
+                } else if (event === 'SIGNED_OUT') {
+                    showNotAuthenticated();
+                    // Clear content and counts, then redirect if signed out
+                    if (yourFavoritesGrid) yourFavoritesGrid.innerHTML = '<p class="text-gray-400 col-span-full">Please log in to view your favorite tracks.</p>';
+                    if (yourUploadsGrid) yourUploadsGrid.innerHTML = '<p class="text-gray-400 col-span-full">Please log in to view your uploaded tracks.</p>';
+                    if (likedSongsCount) likedSongsCount.textContent = '0 tracks';
+                    if (yourUploadsCount) yourUploadsCount.textContent = '0 tracks';
+                    allLoadedTracks = []; // Clear loaded tracks
+                    // Hide the player footer
+                    playerFooter.classList.add('hidden');
+                    playerFooter.classList.remove('active');
+                    playbackProgressBarContainer.classList.add('hidden');
+                    playbackProgressBarContainer.classList.remove('active');
+
+                    window.location.href = 'index.html'; // Redirect to discover page on logout
+                }
+            });
+        });
+</script>
+
+</body>
+</html>

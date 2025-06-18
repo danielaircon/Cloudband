@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Upload Track - CloudBand</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+</head>
+<body class="bg-[#0e0e0e] text-white font-sans min-h-screen">
+
+<header class="bg-black border-b border-[#222]">
+    <div class="flex justify-between items-center px-8 py-4 w-5/6 max-w-screen-xl mx-auto">
+        <div class="flex items-center space-x-8">
+            <div class="text-2xl font-bold text-white">Cloud<span class="text-purple-500">Band</span></div>
+            <nav class="space-x-4">
+                <a href="index.html" class="nav-link text-gray-400 text-md hover:underline">Discover</a>
+                <a href="library.html" class="nav-link text-gray-400 text-md hover:underline" id="library-link">My Library</a>
+            </nav>
+        </div>
+
+        <div id="auth-actions" class="flex items-center space-x-4">
+            <div id="auth-loading" class="flex items-center space-x-2">
+                <i data-lucide="loader-2" class="w-4 h-4 animate-spin text-gray-400"></i>
+                <span class="text-gray-400 text-sm">Loading...</span>
+            </div>
+
+            <div id="not-authenticated" class="hidden flex items-center space-x-8">
+                <a href="login.html">
+                    <button class="flex items-center gap-2 bg-black text-white font-semibold px-4 py-2 rounded hover:bg-[#111]">
+                        <i data-lucide="log-in" class="w-4 h-4"></i> Login
+                    </button>
+                </a>
+                <a href="signup.html">
+                    <button class="flex items-center gap-2 bg-black text-white font-semibold px-4 py-2 rounded border border-gray-500 hover:bg-[#111]">
+                        <i data-lucide="user-plus" class="w-4 h-4"></i> Sign Up
+                    </button>
+                </a>
+            </div>
+
+            <div id="authenticated" class="hidden flex items-center space-x-8">
+                <a href="upload.html">
+                    <button class="flex items-center gap-2 bg-purple-500 text-white font-semibold px-4 py-2 rounded hover:bg-purple-600">
+                        <i data-lucide="upload" class="w-4 h-4"></i> Upload Track
+                    </button>
+                </a>
+                <button id="logout-btn" class="flex items-center gap-2 rounded border border-gray-500 text-white font-semibold px-4 py-2 hover:bg-red-500">
+                    <i data-lucide="log-out" class="w-4 h-4"></i> Logout
+                </button>
+            </div>
+        </div>
+    </div>
+</header>
+
+<main class="flex flex-col items-center justify-start px-4 py-16">
+    <h1 class="text-3xl font-bold mb-2">Upload Your Track</h1>
+    <p class="text-gray-400 mb-10 text-center">Share your music with CloudBand listeners around the world</p>
+
+    <div class="bg-[#1a1a1a] w-full max-w-xl p-8 rounded-lg border border-[#333]">
+        <h2 class="text-xl font-semibold mb-1">Upload Your Track</h2>
+        <p class="text-sm text-gray-400 mb-6">Share your music with the world.</p>
+
+        <div id="audioDropzone" class="border-2 border-dashed border-gray-600 rounded-lg p-10 flex flex-col items-center text-center mb-6 relative">
+            <div class="bg-[#222] p-4 rounded-full mb-4">
+                <i data-lucide="upload-cloud" class="w-6 h-6 text-purple-400"></i>
+            </div>
+            <p id="audioDropzoneText" class="font-semibold text-white mb-2">Drag and drop your audio file here</p>
+            <p class="text-sm text-gray-400 mb-4">or click to browse (MP3, WAV, FLAC)</p>
+            <label for="fileInput" class="cursor-pointer">
+                <div class="bg-black border border-gray-500 px-4 py-2 rounded text-sm hover:bg-[#111]">
+                    Select File
+                </div>
+            </label>
+            <input id="fileInput" type="file" accept="audio/*" class="hidden" />
+            <p id="audioFileName" class="text-gray-300 text-sm mt-2 hidden"></p>
+        </div>
+
+        <div class="mb-6">
+            <label for="coverImageInput" class="text-sm font-semibold">Cover Image</label>
+            <div id="coverImageDropzone" class="border-2 border-dashed border-gray-600 rounded-lg p-6 text-center mt-1 relative">
+                <div class="flex flex-col items-center space-y-2">
+                    <i data-lucide="image" class="w-6 h-6 text-purple-400"></i>
+                    <p id="coverDropzoneText" class="text-sm text-gray-300">Upload album art or song cover</p>
+                    <label for="coverImageInput" class="cursor-pointer">
+                        <div class="bg-black border border-gray-500 px-4 py-2 rounded text-sm hover:bg-[#111]">
+                            Select Image
+                        </div>
+                    </label>
+                    <input id="coverImageInput" type="file" accept="image/*" class="hidden" />
+                    <p id="coverFileName" class="text-gray-300 text-sm mt-2 hidden"></p>
+                </div>
+                <img id="coverPreview" src="" alt="Cover Preview" class="absolute inset-0 w-full h-full object-cover rounded-lg hidden opacity-50"/>
+            </div>
+        </div>
+
+        <div class="mb-4">
+            <label for="title" class="text-sm font-semibold">Title</label>
+            <input type="text" id="title" placeholder="Enter track title"
+                   class="w-full bg-[#111] text-white px-4 py-2 mt-1 rounded border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500"/>
+        </div>
+
+        <div class="mb-8">
+            <label for="author" class="text-sm font-semibold">Author</label>
+            <input id="author" placeholder="Author's Name"
+                   class="w-full bg-[#111] text-white px-4 py-2 mt-1 rounded border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500"/>
+        </div>
+
+        <div id="uploadStatus" class="text-center text-sm mb-4 hidden"></div>
+
+        <button id="uploadTrackBtn" class="w-full bg-purple-500 hover:bg-purple-600 text-white py-2 rounded font-semibold flex items-center justify-center gap-2">
+            <i data-lucide="upload" class="w-5 h-5"></i>
+            <span>Upload Track</span>
+        </button>
+    </div>
+</main>
+
+<script>
+    // Supabase config
+    // REPLACE WITH YOUR ACTUAL SUPABASE URL AND ANON KEY
+    const SUPABASE_URL = 'https://pibzqbgubzrhtcqfftov.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpYnpxYmd1YnpyaHRjcWZmdG92Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk1Mjc2MjUsImV4cCI6MjA2NTEwMzYyNX0.388avFjv2guDGFpi71-Z-nTsFh1rl7QVjL4IgUWAmjA';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // --- DOM References ---
+    let authLoading, notAuthenticated, authenticated, logoutBtn, libraryLink, userEmail;
+    let fileInput, coverImageInput, titleInput, authorInput, uploadTrackBtn, uploadStatus;
+    let audioDropzone, coverImageDropzone, audioFileName, coverFileName, coverPreview, audioDropzoneText, coverDropzoneText;
+
+    let selectedAudioFile = null;
+    let selectedCoverFile = null;
+    let currentUserId = null; // Store the authenticated user's ID
+
+    function initDOM() {
+        // Auth elements
+        authLoading = document.getElementById('auth-loading');
+        notAuthenticated = document.getElementById('not-authenticated');
+        authenticated = document.getElementById('authenticated');
+        logoutBtn = document.getElementById('logout-btn');
+        libraryLink = document.getElementById('library-link');
+        userEmail = document.getElementById('user-email');
+
+        // Upload form elements
+        fileInput = document.getElementById('fileInput');
+        coverImageInput = document.getElementById('coverImageInput');
+        titleInput = document.getElementById('title');
+        authorInput = document.getElementById('author');
+        uploadTrackBtn = document.getElementById('uploadTrackBtn');
+        uploadStatus = document.getElementById('uploadStatus');
+
+        audioDropzone = document.getElementById('audioDropzone');
+        coverImageDropzone = document.getElementById('coverImageDropzone');
+        audioFileName = document.getElementById('audioFileName');
+        coverFileName = document.getElementById('coverFileName');
+        coverPreview = document.getElementById('coverPreview');
+        audioDropzoneText = document.getElementById('audioDropzoneText');
+        coverDropzoneText = document.getElementById('coverDropzoneText');
+    }
+
+    // --- Authentication Functions ---
+    function showAuthenticated(user) {
+        authLoading?.classList.add('hidden');
+        notAuthenticated?.classList.add('hidden');
+        authenticated?.classList.remove('hidden');
+        libraryLink?.classList.remove('hidden');
+        if (userEmail) userEmail.textContent = user.email;
+        lucide.createIcons(); // Re-render Lucide icons
+    }
+
+    function showNotAuthenticated() {
+        authLoading?.classList.add('hidden');
+        authenticated?.classList.add('hidden');
+        notAuthenticated?.classList.remove('hidden');
+        libraryLink?.classList.add('hidden');
+        lucide.createIcons(); // Re-render Lucide icons
+    }
+
+    async function checkAuthStatus() {
+        try {
+            const { data: { session }, error } = await supabaseClient.auth.getSession();
+            console.log('Auth check on Upload page - Session:', session, 'Error:', error);
+
+            if (session?.user) {
+                currentUserId = session.user.id; // Store user ID
+                showAuthenticated(session.user);
+                return session.user;
+            } else {
+                showNotAuthenticated();
+                console.log('User not authenticated, redirecting to login.html');
+                window.location.href = 'login.html'; // Redirect if not authenticated
+                return null;
+            }
+        } catch (err) {
+            console.error('Auth check error on Upload page:', err);
+            showNotAuthenticated();
+            console.log('Auth error, redirecting to login.html');
+            window.location.href = 'login.html';
+            return null;
+        }
+    }
+
+    async function logout() {
+        if (logoutBtn) {
+            logoutBtn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Logging out...';
+            logoutBtn.disabled = true;
+        }
+
+        const { error } = await supabaseClient.auth.signOut();
+        if (error) {
+            console.error('Logout error:', error);
+            alert('Error logging out. Please try again.');
+            if (logoutBtn) {
+                logoutBtn.innerHTML = '<i data-lucide="log-out" class="w-4 h-4"></i> Logout';
+                logoutBtn.disabled = false;
+            }
+            lucide.createIcons();
+        } else {
+            console.log('User logged out successfully. Redirecting to index.html');
+            window.location.href = 'index.html';
+        }
+    }
+
+    // --- Upload Functions ---
+
+    /**
+     * Displays a status message to the user.
+     * @param {string} message - The message to display.
+     * @param {string} type - 'success', 'error', or 'info' for styling.
+     */
+    function displayStatus(message, type) {
+        if (uploadStatus) {
+            uploadStatus.textContent = message;
+            uploadStatus.classList.remove('hidden', 'text-green-500', 'text-red-500', 'text-blue-500', 'text-gray-400');
+            if (type === 'success') {
+                uploadStatus.classList.add('text-green-500');
+            } else if (type === 'error') {
+                uploadStatus.classList.add('text-red-500');
+            } else {
+                uploadStatus.classList.add('text-blue-500'); // Use blue for general info/loading
+            }
+            uploadStatus.classList.remove('hidden'); // Ensure it's visible
+        }
+    }
+
+    /**
+     * Handles the track file selection.
+     * @param {FileList} files - The FileList object from the input or drop event.
+     */
+    function handleAudioFile(files) {
+        if (files.length > 0) {
+            const file = files[0];
+            if (!file.type.startsWith('audio/')) {
+                displayStatus('Please upload an audio file (e.g., MP3, WAV, FLAC).', 'error');
+                selectedAudioFile = null;
+                audioFileName.classList.add('hidden');
+                audioFileName.textContent = '';
+                audioDropzoneText.textContent = 'Drag and drop your audio file here';
+                return;
+            }
+            selectedAudioFile = file;
+            audioFileName.textContent = `Selected: ${file.name}`;
+            audioFileName.classList.remove('hidden');
+            audioDropzoneText.textContent = 'Audio file selected';
+            displayStatus(`Audio file selected: ${file.name}`, 'info');
+        } else {
+            selectedAudioFile = null;
+            audioFileName.classList.add('hidden');
+            audioFileName.textContent = '';
+            audioDropzoneText.textContent = 'Drag and drop your audio file here';
+            displayStatus('No audio file selected.', 'info');
+        }
+    }
+
+    /**
+     * Handles the cover image file selection.
+     * @param {FileList} files - The FileList object from the input or drop event.
+     */
+    function handleCoverFile(files) {
+        if (files.length > 0) {
+            const file = files[0];
+            if (!file.type.startsWith('image/')) {
+                displayStatus('Please upload an image file for the cover.', 'error');
+                selectedCoverFile = null;
+                coverFileName.classList.add('hidden');
+                coverFileName.textContent = '';
+                coverPreview.classList.add('hidden');
+                coverPreview.src = '';
+                coverDropzoneText.textContent = 'Upload album art or song cover';
+                return;
+            }
+            selectedCoverFile = file;
+            coverFileName.textContent = `Selected: ${file.name}`;
+            coverFileName.classList.remove('hidden');
+            coverDropzoneText.textContent = 'Cover image selected';
+
+            // Display image preview
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                coverPreview.src = e.target.result;
+                coverPreview.classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+            displayStatus(`Cover image selected: ${file.name}`, 'info');
+        } else {
+            selectedCoverFile = null;
+            coverFileName.classList.add('hidden');
+            coverFileName.textContent = '';
+            coverPreview.classList.add('hidden');
+            coverPreview.src = '';
+            coverDropzoneText.textContent = 'Upload album art or song cover';
+            displayStatus('No cover image selected.', 'info');
+        }
+    }
+
+    /**
+     * Uploads a file to Supabase Storage.
+     * @param {File} file - The file to upload.
+     * @param {string} bucketName - The Supabase storage bucket name (e.g., 'songs', 'song-image').
+     * @param {string} folderPath - The folder path within the bucket (e.g., 'audio', 'images').
+     * @returns {Promise<string|null>} Public URL of the uploaded file, or null on error.
+     */
+    async function uploadFileToStorage(file, bucketName, folderPath) {
+        // Generate a unique file name using UUID and original extension
+        const fileExtension = file.name.split('.').pop();
+        const fileName = `${crypto.randomUUID()}.${fileExtension}`;
+        const filePath = `${folderPath}/${fileName}`;
+
+        try {
+            const { data, error } = await supabaseClient.storage
+                .from(bucketName)
+                .upload(filePath, file, {
+                    cacheControl: '3600', // Cache for 1 hour
+                    upsert: false // Do not overwrite existing files (ensure unique UUIDs are used)
+                });
+
+            if (error) {
+                throw error;
+            }
+
+            // Get public URL of the uploaded file
+            const { data: publicUrlData } = supabaseClient.storage
+                .from(bucketName)
+                .getPublicUrl(filePath);
+
+            return publicUrlData.publicUrl;
+
+        } catch (error) {
+            console.error(`Error uploading to ${bucketName}/${folderPath}:`, error.message);
+            // Re-throw to be caught by the main upload function for consistent error display
+            throw new Error(`Failed to upload ${bucketName === 'songs' ? 'audio' : 'cover'} file: ${error.message}`);
+        }
+    }
+
+    /**
+     * Handles the overall track upload process.
+     */
+    async function handleUploadTrack() {
+        if (!currentUserId) {
+            displayStatus('You must be logged in to upload a track.', 'error');
+            return;
+        }
+
+        const title = titleInput.value.trim();
+        const author = authorInput.value.trim();
+
+        if (!selectedAudioFile) {
+            displayStatus('Please select an audio file to upload.', 'error');
+            return;
+        }
+        if (!title) {
+            displayStatus('Please enter a track title.', 'error');
+            return;
+        }
+        if (!author) {
+            displayStatus('Please enter the author\'s name.', 'error');
+            return;
+        }
+
+        // Disable button and show loading state
+        uploadTrackBtn.disabled = true;
+        uploadTrackBtn.innerHTML = '<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i> <span>Uploading...</span>';
+        lucide.createIcons(); // Re-render icon
+
+        displayStatus('Starting upload...', 'info');
+
+        let songPath = null;
+        let coverPath = null;
+
+        try {
+            // 1. Upload Audio File to 'songs' bucket
+            displayStatus('Uploading audio file...', 'info');
+            songPath = await uploadFileToStorage(selectedAudioFile, 'songs', 'audio');
+            if (!songPath) {
+                throw new Error('Audio file upload failed. No URL returned.');
+            }
+            displayStatus('Audio file uploaded. Uploading cover image...', 'info');
+
+            // 2. Upload Cover Image to 'song-image' bucket (if selected)
+            if (selectedCoverFile) {
+                coverPath = await uploadFileToStorage(selectedCoverFile, 'song-image', 'images');
+                if (!coverPath) {
+                    throw new Error('Cover image upload failed. No URL returned.');
+                }
+                displayStatus('Cover image uploaded. Saving track details...', 'info');
+            } else {
+                displayStatus('No cover image selected. Saving track details without cover...', 'info');
+            }
+
+            // 3. Insert Track Details into Database 'tracks' table
+            const { data, error } = await supabaseClient
+                .from('tracks')
+                .insert([
+                    {
+                        title: title,
+                        author: author,
+                        song_path: songPath,
+                        cover_path: coverPath, // Will be null if no cover was uploaded
+                        user_id: currentUserId // Link track to the uploader
+                    }
+                ])
+                .select(); // Use .select() to return the inserted row data if needed
+
+            if (error) {
+                throw error;
+            }
+
+            displayStatus('Track uploaded successfully!', 'success');
+            console.log('Track successfully uploaded:', data);
+
+            // Clear form after successful upload
+            fileInput.value = ''; // Clear file input
+            selectedAudioFile = null;
+            audioFileName.classList.add('hidden');
+            audioFileName.textContent = '';
+            audioDropzoneText.textContent = 'Drag and drop your audio file here';
+
+            coverImageInput.value = ''; // Clear file input
+            selectedCoverFile = null;
+            coverFileName.classList.add('hidden');
+            coverFileName.textContent = '';
+            coverPreview.classList.add('hidden');
+            coverPreview.src = '';
+            coverDropzoneText.textContent = 'Upload album art or song cover';
+
+            titleInput.value = '';
+            authorInput.value = '';
+
+        } catch (error) {
+            console.error('Full upload process failed:', error);
+            // Ensure the error message includes details from the caught error
+            displayStatus(`Upload failed: ${error.message}`, 'error');
+        } finally {
+            // Re-enable button and restore original text/icon
+            uploadTrackBtn.disabled = false;
+            uploadTrackBtn.innerHTML = '<i data-lucide="upload" class="w-5 h-5"></i> <span>Upload Track</span>';
+            lucide.createIcons(); // Re-render icon
+        }
+    }
+
+
+    // --- Event Listeners and Initial Setup ---
+    document.addEventListener('DOMContentLoaded', async () => {
+        console.log('DOM loaded, initializing Upload page script...');
+
+        initDOM(); // Initialize all DOM references
+        lucide.createIcons(); // Initial icon rendering for static elements
+
+        // Perform initial authentication check.
+        // This will redirect if the user is not logged in.
+        const user = await checkAuthStatus();
+        if (!user) {
+            // Script execution stops here if not authenticated and redirect occurs
+            return;
+        }
+
+        // Setup logout button listener
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', logout);
+        }
+
+        // Setup file input change listeners
+        fileInput.addEventListener('change', (e) => handleAudioFile(e.target.files));
+        coverImageInput.addEventListener('change', (e) => handleCoverFile(e.target.files));
+
+        // Setup drag-and-drop listeners for audio file
+        audioDropzone.addEventListener('dragover', (e) => {
+            e.preventDefault(); // Prevent default to allow drop
+            e.stopPropagation();
+            audioDropzone.classList.add('border-purple-500'); // Visual feedback
+        });
+        audioDropzone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            audioDropzone.classList.remove('border-purple-500');
+        });
+        audioDropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            audioDropzone.classList.remove('border-purple-500');
+            handleAudioFile(e.dataTransfer.files); // Handle dropped files
+        });
+
+        // Setup drag-and-drop listeners for cover image
+        coverImageDropzone.addEventListener('dragover', (e) => {
+            e.preventDefault(); // Prevent default to allow drop
+            e.stopPropagation();
+            coverImageDropzone.classList.add('border-purple-500'); // Visual feedback
+        });
+        coverImageDropzone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            coverImageDropzone.classList.remove('border-purple-500');
+        });
+        coverImageDropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            coverImageDropzone.classList.remove('border-purple-500');
+            handleCoverFile(e.dataTransfer.files); // Handle dropped files
+        });
+
+
+        // Setup upload button listener
+        if (uploadTrackBtn) {
+            uploadTrackBtn.addEventListener('click', handleUploadTrack);
+        }
+
+        // Listen for auth state changes (important for real-time updates across tabs/sessions)
+        supabaseClient.auth.onAuthStateChange((event, session) => {
+            console.log('Auth state change event detected:', event);
+            if (event === 'SIGNED_IN') {
+                currentUserId = session.user.id;
+                showAuthenticated(session.user);
+            } else if (event === 'SIGNED_OUT') {
+                currentUserId = null; // Clear user ID on sign out
+                showNotAuthenticated();
+                window.location.href = 'index.html'; // Redirect to a public page on logout
+            }
+        });
+    });
+</script>
+
+</body>
+</html>

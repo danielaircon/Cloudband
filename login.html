@@ -1,0 +1,145 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Login - CloudBand</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+</head>
+<body class="bg-[#0e0e0e] text-white font-sans min-h-screen">
+
+  <!-- Header -->
+  <header class="bg-black border-b border-[#222]">
+    <div class="flex justify-between items-center px-8 py-4 w-5/6 max-w-screen-xl mx-auto">
+      <div class="flex items-center space-x-8">
+        <div class="text-2xl font-bold text-white">Cloud<span class="text-purple-500">Band</span></div>
+        <nav class="space-x-4">
+          <a href="index.html" class="nav-link text-gray-400 text-md hover:underline">Discover</a>
+        </nav>
+      </div>
+
+      <div class="flex items-center space-x-8">
+        <a href="login.html">
+          <button class="flex items-center gap-2 bg-black text-white font-semibold px-4 py-2 rounded hover:bg-[#111]">
+            <i data-lucide="log-in" class="w-4 h-4"></i> Login
+          </button>
+        </a>
+        <a href="signup.html">
+          <button class="flex items-center gap-2 bg-black text-white font-semibold px-4 py-2 rounded border border-gray-500 hover:bg-[#111]">
+            <i data-lucide="user-plus" class="w-4 h-4"></i> Sign Up
+          </button>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Login Form Section -->
+  <main class="flex items-center justify-center px-4 py-16 min-h-[calc(100vh-80px)]">
+    <form id="login-form" class="bg-[#1a1a1a] p-8 rounded-lg shadow-md w-full max-w-md border border-[#333]">
+      <h2 class="text-2xl font-semibold mb-2">Login to your account</h2>
+      <p class="text-sm text-gray-400 mb-6">Enter your credentials to access your CloudBand account</p>
+
+      <!-- Email -->
+      <label for="email" class="text-sm font-semibold">Email</label>
+      <input type="email" id="email" placeholder="your@email.com"
+           class="w-full bg-[#111] text-white px-4 py-2 mt-1 mb-4 rounded border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500" required />
+
+      <!-- Password with Eye Icon -->
+      <div class="flex justify-between items-center mb-1">
+        <label for="password" class="text-sm font-semibold">Password</label>
+      </div>
+      <div class="relative mb-4">
+        <input type="password" id="password" placeholder="••••••••"
+             class="w-full bg-[#111] text-white px-4 py-2 pr-10 rounded border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
+             required />
+        <button type="button" id="toggle-password" class="absolute right-2 top-2.5">
+          <i data-lucide="eye" class="w-5 h-5 stroke-white"></i>
+        </button>
+      </div>
+
+      <!-- Error Display -->
+      <p id="error" class="text-sm text-red-400 mb-4"></p>
+
+      <!-- Login Button -->
+      <button type="submit" class="w-full bg-purple-500 hover:bg-purple-600 text-white py-2 rounded font-semibold flex items-center justify-center gap-2">
+        <i data-lucide="log-in" class="w-4 h-4"></i> Log in
+      </button>
+
+      <!-- Sign up link -->
+      <p class="text-sm text-center font-semibold text-gray-400 mt-6">Don't have an account?
+        <a href="signup.html" class="text-purple-400 hover:underline">Sign up</a>
+      </p>
+    </form>
+  </main>
+
+  <!-- Lucide Icons -->
+  <script>
+    lucide.createIcons();
+  </script>
+
+  <!-- Supabase Login Script -->
+  <script>
+    const SUPABASE_URL = 'https://pibzqbgubzrhtcqfftov.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpYnpxYmd1YnpyaHRjcWZmdG92Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk1Mjc2MjUsImV4cCI6MjA2NTEwMzYyNX0.388avFjv2guDGFpi71-Z-nTsFh1rl7QVjL4IgUWAmjA';
+
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value.trim();
+      const errorDisplay = document.getElementById('error');
+
+      errorDisplay.textContent = '';
+
+      if (!email || !password) {
+        errorDisplay.textContent = "Email and password are required.";
+        return;
+      }
+
+      const submitButton = e.target.querySelector('button[type="submit"]');
+      const originalText = submitButton.innerHTML;
+      submitButton.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Logging in...';
+      submitButton.disabled = true;
+
+      try {
+        const { data, error } = await supabaseClient.auth.signInWithPassword({
+          email,
+          password
+        });
+
+        if (error) {
+          errorDisplay.textContent = error.message;
+        } else {
+          window.location.href = "index.html";
+        }
+      } catch (err) {
+        console.error(err);
+        errorDisplay.textContent = "Unexpected error. Please try again.";
+      } finally {
+        submitButton.innerHTML = originalText;
+        submitButton.disabled = false;
+        lucide.createIcons();
+      }
+    });
+
+    // Password visibility toggle
+    const togglePasswordBtn = document.getElementById('toggle-password');
+    const passwordInput = document.getElementById('password');
+    let passwordVisible = false;
+
+    togglePasswordBtn.addEventListener('click', () => {
+      passwordVisible = !passwordVisible;
+      passwordInput.type = passwordVisible ? 'text' : 'password';
+      togglePasswordBtn.innerHTML = passwordVisible
+        ? '<i data-lucide="eye-off" class="w-5 h-5 stroke-white"></i>'
+        : '<i data-lucide="eye" class="w-5 h-5 stroke-white"></i>';
+      lucide.createIcons();
+    });
+  </script>
+</body>
+</html>
